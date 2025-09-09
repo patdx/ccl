@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CCL Configuration Schema",
+  "description": "JSON schema for Claude Code Launcher (CCL) configuration file",
+  "type": "object",
+  "properties": {
+    "default": {
+      "type": "object",
+      "description": "Default configuration settings",
+      "properties": {
+        "api_url": {
+          "type": "string",
+          "description": "Default API URL for Claude CLI",
+          "examples": ["https://api.anthropic.com"]
+        },
+        "api_key": {
+          "type": "string",
+          "description": "Default API key for Claude CLI",
+          "examples": ["sk-ant-api03-..."]
+        }
+      },
+      "additionalProperties": false
+    },
+    "configs": {
+      "type": "object",
+      "description": "Named configuration profiles",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "description": "Configuration profile",
+          "properties": {
+            "api_url": {
+              "type": "string",
+              "description": "API URL for this configuration profile",
+              "examples": ["https://api.zai.com"]
+            },
+            "api_key": {
+              "type": "string",
+              "description": "API key for this configuration profile",
+              "examples": ["zai-api-key-..."]
+            }
+          },
+          "additionalProperties": false,
+          "required": ["api_url"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "required": ["default", "configs"]
+}

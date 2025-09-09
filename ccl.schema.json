@@ -1,52 +1,58 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "CCL Configuration Schema",
-  "description": "JSON schema for Claude Code Launcher (CCL) configuration file",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "default": {
-      "type": "object",
-      "description": "Default configuration settings",
-      "properties": {
-        "api_url": {
-          "type": "string",
-          "description": "Default API URL for Claude CLI",
-          "examples": ["https://api.anthropic.com"]
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
         },
-        "api_key": {
-          "type": "string",
-          "description": "Default API key for Claude CLI",
-          "examples": ["sk-ant-api03-..."]
+        {
+          "type": "null"
         }
-      },
-      "additionalProperties": false
+      ]
     },
-    "configs": {
-      "type": "object",
-      "description": "Named configuration profiles",
-      "patternProperties": {
-        "^[a-zA-Z0-9_-]+$": {
+    "default": {
+      "anyOf": [
+        {
           "type": "object",
-          "description": "Configuration profile",
           "properties": {
-            "api_url": {
-              "type": "string",
-              "description": "API URL for this configuration profile",
-              "examples": ["https://api.zai.com"]
-            },
-            "api_key": {
-              "type": "string",
-              "description": "API key for this configuration profile",
-              "examples": ["zai-api-key-..."]
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
           },
-          "additionalProperties": false,
-          "required": ["api_url"]
+          "required": []
+        },
+        {
+          "type": "null"
         }
-      },
-      "additionalProperties": false
+      ]
+    },
+    "configs": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "env": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": []
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
-  "additionalProperties": false,
-  "required": ["default", "configs"]
+  "required": []
 }

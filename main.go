@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +14,9 @@ import (
 type Config struct {
 	Env map[string]string `json:"env,omitempty"`
 }
+
+//go:embed ccl.example.json
+var defaultConfigJSON []byte
 
 type Configs struct {
 	Default Config            `json:"default"`
@@ -40,32 +44,7 @@ func loadConfigs() (*Configs, error) {
 			return nil, fmt.Errorf("error creating config directory %s: %v", configDir, err)
 		}
 
-		defaultConfigs := &Configs{
-			Default: Config{
-				Env: map[string]string{},
-			},
-			Configs: map[string]Config{
-				"zai": {
-					Env: map[string]string{
-						"ANTHROPIC_BASE_URL":   "https://api.z.ai/api/anthropic",
-						"ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY",
-					},
-				},
-			},
-		}
-
-		// Create config with $schema reference
-		configWithSchema := map[string]interface{}{
-			"$schema": "https://github.com/patdx/ccl/raw/refs/heads/main/ccl.schema.json",
-			"default": defaultConfigs.Default,
-			"configs": defaultConfigs.Configs,
-		}
-
-		data, err := json.MarshalIndent(configWithSchema, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling default config: %v", err)
-		}
-		if err := os.WriteFile(configPath, data, 0600); err != nil {
+		if err := os.WriteFile(configPath, defaultConfigJSON, 0600); err != nil {
 			return nil, fmt.Errorf("error writing config file %s: %v", configPath, err)
 		}
 		fmt.Printf("Created default config at %s\n", configPath)

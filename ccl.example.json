@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/patdx/ccl/refs/heads/main/ccl.schema.json",
+  "default": {
+    "env": {}
+  },
+  "configs": {
+    "zai": {
+      "env": {
+        "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY"
+      }
+    }
+  }
+}

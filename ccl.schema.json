@@ -3,56 +3,145 @@
   "type": "object",
   "properties": {
     "$schema": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
+      "type": "string",
+      "title": "JSON Schema Reference",
+      "description": "Optional reference to the JSON schema for validation.",
+      "examples": [
+        "./ccl.schema.json"
       ]
     },
     "default": {
-      "anyOf": [
-        {
+      "type": "object",
+      "properties": {
+        "env": {
           "type": "object",
           "properties": {
-            "env": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "string"
-              }
+            "ANTHROPIC_AUTH_TOKEN": {
+              "type": "string",
+              "title": "Anthropic Auth Token",
+              "description": "Authentication token for Anthropic API access.",
+              "examples": [
+                "sk-ant-api03-..."
+              ]
+            },
+            "ANTHROPIC_BASE_URL": {
+              "type": "string",
+              "title": "Anthropic Base URL",
+              "description": "Base URL for Anthropic API endpoints.",
+              "examples": [
+                "https://api.anthropic.com"
+              ]
             }
           },
-          "required": []
-        },
+          "required": [],
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Environment Variables",
+          "description": "Configuration for environment variables with well-known keys and support for additional custom variables.",
+          "examples": [
+            {
+              "ANTHROPIC_AUTH_TOKEN": "sk-ant-api03-...",
+              "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+              "CUSTOM_VAR": "custom_value"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "title": "Default Configuration",
+      "description": "Default configuration settings applied when no specific config is specified.",
+      "examples": [
         {
-          "type": "null"
+          "env": {
+            "ANTHROPIC_AUTH_TOKEN": "sk-ant-api03-..."
+          }
         }
       ]
     },
     "configs": {
-      "anyOf": [
-        {
-          "type": "object",
-          "additionalProperties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "env": {
             "type": "object",
             "properties": {
-              "env": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
-                }
+              "ANTHROPIC_AUTH_TOKEN": {
+                "type": "string",
+                "title": "Anthropic Auth Token",
+                "description": "Authentication token for Anthropic API access.",
+                "examples": [
+                  "sk-ant-api03-..."
+                ]
+              },
+              "ANTHROPIC_BASE_URL": {
+                "type": "string",
+                "title": "Anthropic Base URL",
+                "description": "Base URL for Anthropic API endpoints.",
+                "examples": [
+                  "https://api.anthropic.com"
+                ]
               }
             },
-            "required": []
+            "required": [],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Environment Variables",
+            "description": "Configuration for environment variables with well-known keys and support for additional custom variables.",
+            "examples": [
+              {
+                "ANTHROPIC_AUTH_TOKEN": "sk-ant-api03-...",
+                "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+                "CUSTOM_VAR": "custom_value"
+              }
+            ]
           }
         },
+        "required": [],
+        "title": "Configuration Schema",
+        "description": "Schema defining configuration options for the application.",
+        "examples": [
+          {
+            "env": {
+              "ANTHROPIC_AUTH_TOKEN": "sk-ant-api03-...",
+              "NODE_ENV": "development"
+            }
+          }
+        ]
+      },
+      "title": "Named Configurations",
+      "description": "Named configuration profiles that can be selected at runtime.",
+      "examples": [
         {
-          "type": "null"
+          "zai": {
+            "env": {
+              "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+              "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY"
+            }
+          }
         }
       ]
     }
   },
-  "required": []
+  "required": [],
+  "title": "CCL Configuration Schema",
+  "description": "Root schema for CCL (Claude Code Library) configuration files.",
+  "examples": [
+    {
+      "$schema": "./ccl.schema.json",
+      "default": {
+        "env": {}
+      },
+      "configs": {
+        "zai": {
+          "env": {
+            "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+            "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -67,7 +67,7 @@ CCL looks for configuration in this order:
 
 ```json
 {
-  "$schema": "https://github.com/patdx/ccl/raw/refs/heads/main/ccl.schema.json",
+  "$schema": "https://raw.githubusercontent.com/patdx/ccl/refs/heads/main/ccl.schema.json",
   "default": {
     "env": {}
   },
@@ -75,13 +75,23 @@ CCL looks for configuration in this order:
     "zai": {
       "env": {
         "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-        "ANTHROPIC_AUTH_TOKEN": "your-zai-api-key"
+        "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY"
       }
     },
-    "anthropic": {
+    "deepseek": {
       "env": {
-        "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
-        "ANTHROPIC_AUTH_TOKEN": "your-anthropic-api-key"
+        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY",
+        "API_TIMEOUT_MS": "600000",
+        "ANTHROPIC_MODEL": "deepseek-chat",
+        "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-chat",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+      }
+    },
+    "kimi": {
+      "env": {
+        "ANTHROPIC_BASE_URL": "https://api.moonshot.ai/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "YOUR_API_KEY"
       }
     }
   }

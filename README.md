@@ -68,6 +68,7 @@ CCL looks for configuration in this order:
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/patdx/ccl/refs/heads/main/ccl.schema.json",
+  "bin": "/path/to/claude",
   "default": {
     "env": {}
   },
@@ -98,12 +99,35 @@ CCL looks for configuration in this order:
 }
 ```
 
+### Configuration Properties
+
+- `bin` (optional): Path to the Claude CLI binary. If not specified, CCL will use `which claude` to find it in PATH.
+- `default`: Default configuration applied when no specific config is selected
+- `configs`: Named configurations that can be selected at runtime
+
 ### Environment Variables
 
 Each configuration can set environment variables that will be passed to the Claude CLI:
 - `ANTHROPIC_BASE_URL`: API endpoint URL
 - `ANTHROPIC_AUTH_TOKEN`: API authentication token
 - Any other environment variables your Claude CLI setup requires
+
+### Claude Binary Path
+
+If you installed Claude CLI via an alias (e.g., `alias claude="/home/user/.claude/local/claude"`), you'll need to specify the binary path in your config:
+
+```json
+{
+  "bin": "/home/user/.claude/local/claude",
+  "default": { "env": {} }
+}
+```
+
+To find your Claude binary path, run:
+```bash
+which claude  # On Linux/macOS
+where claude  # On Windows
+```
 
 ## Usage
 
@@ -206,12 +230,13 @@ make all      # Clean and build
 ### Claude CLI Not Found
 
 If CCL can't find the Claude CLI:
-1. Ensure Claude CLI is installed and in your PATH
-2. CCL checks these locations in order:
-   - `which claude` command output
-   - `~/.claude/local/claude`
-   - `/usr/local/bin/claude`
-   - `/opt/claude/claude`
+1. Run `which claude` (or `where claude` on Windows) to find the binary path
+2. Add the path to your config file: `"bin": "/path/to/claude"`
+3. Alternatively, ensure Claude CLI is installed and in your PATH
+
+Common installation locations:
+- Shell alias: Check your `.bashrc`/`.zshrc` for `alias claude="..."`
+- Direct install: `/usr/local/bin/claude`, `~/.claude/local/claude`
 
 ### Configuration Issues
 

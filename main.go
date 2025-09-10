@@ -21,8 +21,15 @@ type Config struct {
 var defaultConfigJSON []byte
 
 type Configs struct {
+	Bin     string            `json:"bin,omitempty"`
 	Default Config            `json:"default"`
 	Configs map[string]Config `json:"configs"`
+}
+
+type FlagOptions struct {
+	Yolo    bool
+	Verbose bool
+	Help    bool
 }
 
 func getConfigPath() string {
@@ -99,36 +106,80 @@ func isSensitiveKey(key string) bool {
 		strings.Contains(upper, "SECRET") || strings.Contains(upper, "PASSWORD")
 }
 
-// Global flag variables
-var (
-	configFlag  = flag.String("config", "", "configuration name to use")
-	yoloFlag    = flag.Bool("yolo", false, "enable yolo mode")
-	verboseFlag = flag.Bool("verbose", false, "enable verbose logging")
-	shellFlag   = flag.Bool("shell", false, "force execution via shell (for testing)")
-	listFlag    = flag.Bool("list", false, "list available configurations")
-	helpFlag    = flag.Bool("help", false, "show help message")
-)
-
-func init() {
-	// Add aliases for flags
-	flag.StringVar(configFlag, "c", *configFlag, "alias for -config")
-	flag.BoolVar(yoloFlag, "y", *yoloFlag, "alias for -yolo")
-	flag.BoolVar(helpFlag, "h", *helpFlag, "alias for -help")
+func parseArgs(args []string) (*FlagOptions, []string, error) {
+	// Create a new FlagSet for this parsing operation
+	fs := flag.NewFlagSet("ccl", flag.ContinueOnError)
+	
+	// Define flags on this specific FlagSet
+	opts := &FlagOptions{}
+	fs.BoolVar(&opts.Yolo, "yolo", false, "enable yolo mode")
+	fs.BoolVar(&opts.Yolo, "y", false, "alias for -yolo")
+	fs.BoolVar(&opts.Verbose, "verbose", false, "enable verbose logging")
+	fs.BoolVar(&opts.Help, "help", false, "show help message")
+	fs.BoolVar(&opts.Help, "h", false, "alias for -help")
+	
+	// Parse the provided args instead of os.Args
+	err := fs.Parse(args)
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	// Return parsed options and remaining args
+	return opts, fs.Args(), nil
 }
+
 
 func main() {
 	startTime := time.Now()
 	configPath := getConfigPath()
 
-	// Parse flags
-	flag.Parse()
+	// Parse arguments - handle special subcommands first
+	args := os.Args[1:]
+	
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "Error: config name or subcommand required as first argument\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s <config-name|list> [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s list                    list available configurations\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s <config-name> [options]  run claude with specified config\n", os.Args[0])
+		os.Exit(1)
+	}
+	
+	// Handle special subcommands
+	if args[0] == "list" {
+		// Load configurations for listing
+		configs, err := loadConfigs()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		
+		fmt.Fprintf(os.Stderr, "Available configurations:\n")
+		fmt.Fprintf(os.Stderr, "  default\n")
+		for name := range configs.Configs {
+			fmt.Fprintf(os.Stderr, "  %s\n", name)
+		}
+		os.Exit(0)
+	}
+	
+	// Parse config name from first argument
+	configName := args[0]
+	argsForParsing := args[1:] // remaining args after config name
+	
+	// Parse flags from remaining args
+	opts, remainingArgs, err := parseArgs(argsForParsing)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
 
-	if *verboseFlag {
+	if opts.Verbose {
 		fmt.Printf("Using config: %s\n", configPath)
 		fmt.Printf("Initial args: %v\n", os.Args[1:])
-		fmt.Printf("Parsed flags: config=%s, yolo=%v, verbose=%v, shell=%v, list=%v, help=%v\n",
-			*configFlag, *yoloFlag, *verboseFlag, *shellFlag, *listFlag, *helpFlag)
-		fmt.Printf("Remaining args: %v\n", flag.Args())
+		fmt.Printf("Config name: %s\n", configName)
+		fmt.Printf("Args for parsing: %v\n", argsForParsing)
+		fmt.Printf("Parsed flags: yolo=%v, verbose=%v, help=%v\n",
+			opts.Yolo, opts.Verbose, opts.Help)
+		fmt.Printf("Remaining args: %v\n", remainingArgs)
 	}
 
 	// Load configurations
@@ -139,51 +190,39 @@ func main() {
 	}
 
 	// Handle help flag
-	if *helpFlag {
-		fmt.Fprintf(os.Stderr, "Usage: %s [config-name] [options]\n", os.Args[0])
+	if opts.Help {
+		fmt.Fprintf(os.Stderr, "Usage: %s <config-name> [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s list\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nSubcommands:\n")
+		fmt.Fprintf(os.Stderr, "  list                 list available configurations\n")
+		fmt.Fprintf(os.Stderr, "\nArguments:\n")
+		fmt.Fprintf(os.Stderr, "  <config-name>        configuration name to use (required)\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
-		fmt.Fprintf(os.Stderr, "  -config, -c string   configuration name to use\n")
 		fmt.Fprintf(os.Stderr, "  -yolo, -y            enable yolo mode\n")
-		fmt.Fprintf(os.Stderr, "  -list                list available configurations\n")
 		fmt.Fprintf(os.Stderr, "  -verbose             enable verbose logging\n")
-		fmt.Fprintf(os.Stderr, "  -shell               force execution via shell (for testing)\n")
 		fmt.Fprintf(os.Stderr, "  -help, -h            show help message\n")
 		fmt.Fprintf(os.Stderr, "\nOther options are passed through to claude command\n")
 		os.Exit(0)
 	}
 
-	// Handle list flag
-	if *listFlag {
-		fmt.Fprintf(os.Stderr, "Available configurations:\n")
-		for name := range configs.Configs {
-			fmt.Fprintf(os.Stderr, "  %s\n", name)
-		}
-		os.Exit(0)
-	}
-
-	// Determine config name - check if first remaining arg is a config name
-	configName := *configFlag
-	if configName == "" && len(flag.Args()) > 0 {
-		firstArg := flag.Args()[0]
-		if _, exists := configs.Configs[firstArg]; exists {
-			configName = firstArg
-			if *verboseFlag {
-				fmt.Printf("Using first argument as config name: %s\n", configName)
-			}
-		}
-	}
 
 	// Select config
-	var selectedConfig Config = configs.Default
-	if configName != "" {
+	var selectedConfig Config
+	if configName == "default" {
+		selectedConfig = configs.Default
+		if opts.Verbose {
+			fmt.Printf("Using default config: %+v\n", selectedConfig)
+		}
+	} else {
 		if config, exists := configs.Configs[configName]; exists {
 			selectedConfig = config
-			if *verboseFlag {
+			if opts.Verbose {
 				fmt.Printf("Selected config: %+v\n", selectedConfig)
 			}
 		} else {
 			fmt.Fprintf(os.Stderr, "Config '%s' not found\n", configName)
 			fmt.Fprintf(os.Stderr, "Available configurations:\n")
+			fmt.Fprintf(os.Stderr, "  default\n")
 			for name := range configs.Configs {
 				fmt.Fprintf(os.Stderr, "  %s\n", name)
 			}
@@ -194,21 +233,17 @@ func main() {
 
 	// Build transformed args
 	var transformedArgs []string
-	if *yoloFlag {
-		if *verboseFlag {
+	if opts.Yolo {
+		if opts.Verbose {
 			fmt.Println("Transforming --yolo to --dangerously-skip-permissions")
 		}
 		transformedArgs = append(transformedArgs, "--dangerously-skip-permissions")
 	}
 
-	// Add remaining arguments (skip first if it was used as config name)
-	remainingArgs := flag.Args()
-	if configName != "" && len(remainingArgs) > 0 && remainingArgs[0] == configName {
-		remainingArgs = remainingArgs[1:]
-	}
+	// Add remaining arguments (config name was already consumed)
 	transformedArgs = append(transformedArgs, remainingArgs...)
 
-	if *verboseFlag {
+	if opts.Verbose {
 		fmt.Printf("Final selected config: %+v\n", selectedConfig)
 		fmt.Printf("Config name: '%s'\n", configName)
 		fmt.Printf("Transformed args: %v\n", transformedArgs)
@@ -225,7 +260,7 @@ func main() {
 	}
 
 	originalCount := len(envMap)
-	if *verboseFlag {
+	if opts.Verbose {
 		fmt.Printf("Original env count: %d\n", originalCount)
 	}
 
@@ -233,7 +268,7 @@ func main() {
 	if configs.Default.Env != nil {
 		for key, value := range configs.Default.Env {
 			envMap[key] = value
-			if *verboseFlag {
+			if opts.Verbose {
 				if isSensitiveKey(key) {
 					fmt.Printf("Added default env var: %s=***masked***\n", key)
 				} else {
@@ -247,7 +282,7 @@ func main() {
 	if selectedConfig.Env != nil {
 		for key, value := range selectedConfig.Env {
 			envMap[key] = value
-			if *verboseFlag {
+			if opts.Verbose {
 				if isSensitiveKey(key) {
 					fmt.Printf("Added selected env var: %s=***masked***\n", key)
 				} else {
@@ -256,7 +291,7 @@ func main() {
 			}
 		}
 	} else {
-		if *verboseFlag {
+		if opts.Verbose {
 			fmt.Println("No environment variables configured in selected config")
 		}
 	}
@@ -267,57 +302,53 @@ func main() {
 		env = append(env, fmt.Sprintf("%s=%s", key, value))
 	}
 
-	if *verboseFlag {
+	if opts.Verbose {
 		fmt.Printf("Final env count: %d (added %d)\n", len(env), len(env)-originalCount)
 	}
 
 	// Set terminal title based on selected config
 	setTerminalTitle(configName)
 
-	// Check if claude is available
+	// Determine claude binary path
 	lookPathStart := time.Now()
 	var claudePath string
-	var useShell bool
 
-	// Try exec.LookPath first (fast for actual executables)
-	claudePath, lookPathErr := exec.LookPath("claude")
-	if lookPathErr != nil || *shellFlag {
-		// If not found or --shell flag is used, execute via user's shell to handle aliases
-		useShell = true
-		userShell := os.Getenv("SHELL")
-		if userShell == "" {
-			userShell = "/bin/sh" // fallback
+	if configs.Bin != "" {
+		// Use configured binary path
+		claudePath = configs.Bin
+		if opts.Verbose {
+			fmt.Printf("Using configured binary path: %s\n", claudePath)
 		}
-		claudePath = userShell
-		if *shellFlag && *verboseFlag {
-			fmt.Printf("Forcing shell mode due to --shell flag\n")
+	} else {
+		// Fall back to exec.LookPath
+		var err error
+		claudePath, err = exec.LookPath("claude")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: claude binary not found in PATH and no bin configured.\n")
+			fmt.Fprintf(os.Stderr, "To fix this, run `which claude` (or `where claude` on Windows) and add the path to your config:\n")
+			fmt.Fprintf(os.Stderr, "Config file: %s\n", configPath)
+			fmt.Fprintf(os.Stderr, "Add: \"bin\": \"/path/to/claude\"\n")
+			os.Exit(1)
+		}
+		if opts.Verbose {
+			fmt.Printf("Found claude in PATH: %s\n", claudePath)
 		}
 	}
 
 	lookPathTime := time.Since(lookPathStart)
-	if *verboseFlag {
-		fmt.Printf("LookPath time: %v\n", lookPathTime)
+	if opts.Verbose {
+		fmt.Printf("Binary resolution time: %v\n", lookPathTime)
 	}
 
 	execTime := time.Since(startTime)
 
-	var finalArgs []string
-	if useShell {
-		// Execute via shell: shell -c "exec claude args..."
-		shellArgs := strings.Join(append([]string{"exec", "claude"}, transformedArgs...), " ")
-		finalArgs = []string{filepath.Base(claudePath), "-c", shellArgs}
-		if *verboseFlag {
-			fmt.Printf("Executing via shell: %s -c \"%s\"\n", claudePath, shellArgs)
-		}
-	} else {
-		// Execute directly: claude args...
-		finalArgs = append([]string{"claude"}, transformedArgs...)
-		if *verboseFlag {
-			fmt.Printf("Executing directly: %s with args %v\n", claudePath, finalArgs)
-		}
+	// Execute directly: claude args...
+	finalArgs := append([]string{"claude"}, transformedArgs...)
+	if opts.Verbose {
+		fmt.Printf("Executing: %s with args %v\n", claudePath, finalArgs)
 	}
 
-	if *verboseFlag {
+	if opts.Verbose {
 		fmt.Printf("ccl startup time: %v\n", execTime)
 	}
 

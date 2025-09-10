@@ -7,7 +7,8 @@ BINARY=ccl
 INSTALL_DIR=$(HOME)/.local/bin
 
 build:
-	go build -o $(BINARY) main.go
+# go build -ldflags "-w -s" microservice.go
+	go build -ldflags "-w -s" -o $(BINARY) main.go
 
 install: build
 	mkdir -p $(INSTALL_DIR)

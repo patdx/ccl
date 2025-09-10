@@ -1,5 +1,7 @@
+#!/usr/bin/env bun
+
 // Script to generate JSON schema from TypeScript schema definition
-// Run with: bun run generate-schema.ts
+// Run with: ./generate-schema.ts
 
 import { toJsonSchema } from '@valibot/to-json-schema';
 import * as fs from 'fs';

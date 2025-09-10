@@ -53,6 +53,14 @@ export default v.pipe(
         examples: ['./ccl.schema.json'],
       })
     )),
+    bin: v.optional(v.pipe(
+      v.string(),
+      v.metadata({
+        title: 'Claude Binary Path',
+        description: 'Path to the claude executable. If not provided, will use exec.LookPath to find claude in PATH.',
+        examples: ['/home/user/.claude/local/claude', '/usr/local/bin/claude'],
+      })
+    )),
     default: v.optional(v.pipe(
       ConfigSchema,
       v.metadata({
@@ -77,6 +85,7 @@ export default v.pipe(
     description: 'Root schema for CCL (Claude Code Library) configuration files.',
     examples: [{
       $schema: './ccl.schema.json',
+      bin: '/home/user/.claude/local/claude',
       default: { env: {} },
       configs: {
         zai: { env: { ANTHROPIC_BASE_URL: 'https://api.z.ai/api/anthropic', ANTHROPIC_AUTH_TOKEN: 'YOUR_API_KEY' } }

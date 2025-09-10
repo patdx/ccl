@@ -6,79 +6,127 @@ import (
 	"testing"
 )
 
-func TestParseFlagsCorrectly(t *testing.T) {
+func TestParseArgs(t *testing.T) {
 	tests := []struct {
-		name              string
-		args              []string
-		expectedConfig    string
-		expectedYolo      bool
+		name           string
+		args           []string
+		expectedYolo   bool
+		expectedVerbose bool
+		expectedHelp   bool
 		expectedRemaining []string
+		expectError    bool
 	}{
 		{
-			name:              "basic command with claude flags",
-			args:              []string{"chat", "--model", "claude-3-5-sonnet-20241022"},
-			expectedConfig:    "",
-			expectedYolo:      false,
-			expectedRemaining: []string{"chat", "--model", "claude-3-5-sonnet-20241022"},
-		},
-		{
-			name:              "yolo flag with command",
-			args:              []string{"--yolo", "chat", "--verbose"},
-			expectedConfig:    "",
-			expectedYolo:      true,
+			name:           "yolo flag",
+			args:           []string{"--yolo", "chat", "--verbose"},
+			expectedYolo:   true,
+			expectedVerbose: false,
+			expectedHelp:   false,
 			expectedRemaining: []string{"chat", "--verbose"},
+			expectError:    false,
 		},
 		{
-			name:              "config flag with remaining",
-			args:              []string{"--config", "zai", "chat", "--model", "claude-3-5-sonnet-20241022"},
-			expectedConfig:    "zai",
-			expectedYolo:      false,
+			name:           "short yolo flag",
+			args:           []string{"-y", "chat"},
+			expectedYolo:   true,
+			expectedVerbose: false,
+			expectedHelp:   false,
+			expectedRemaining: []string{"chat"},
+			expectError:    false,
+		},
+		{
+			name:           "verbose flag",
+			args:           []string{"--verbose", "chat"},
+			expectedYolo:   false,
+			expectedVerbose: true,
+			expectedHelp:   false,
+			expectedRemaining: []string{"chat"},
+			expectError:    false,
+		},
+		{
+			name:           "help flag",
+			args:           []string{"--help"},
+			expectedYolo:   false,
+			expectedVerbose: false,
+			expectedHelp:   true,
+			expectedRemaining: []string{},
+			expectError:    false,
+		},
+		{
+			name:           "short help flag",
+			args:           []string{"-h"},
+			expectedYolo:   false,
+			expectedVerbose: false,
+			expectedHelp:   true,
+			expectedRemaining: []string{},
+			expectError:    false,
+		},
+		{
+			name:           "mixed flags",
+			args:           []string{"--yolo", "--verbose", "chat", "--model", "claude-3-5-sonnet-20241022"},
+			expectedYolo:   true,
+			expectedVerbose: true,
+			expectedHelp:   false,
 			expectedRemaining: []string{"chat", "--model", "claude-3-5-sonnet-20241022"},
+			expectError:    false,
 		},
 		{
-			name:              "config as positional",
-			args:              []string{"zai", "chat", "--verbose"},
-			expectedConfig:    "zai",
-			expectedYolo:      false,
-			expectedRemaining: []string{"chat", "--verbose"},
+			name:           "no flags",
+			args:           []string{"chat", "--model", "claude-3-5-sonnet-20241022"},
+			expectedYolo:   false,
+			expectedVerbose: false,
+			expectedHelp:   false,
+			expectedRemaining: []string{"chat", "--model", "claude-3-5-sonnet-20241022"},
+			expectError:    false,
 		},
 		{
-			name:              "mixed ccl and claude flags",
-			args:              []string{"--yolo", "--config", "zai", "chat", "--model", "claude-3-5-sonnet-20241022", "--verbose"},
-			expectedConfig:    "zai",
-			expectedYolo:      true,
-			expectedRemaining: []string{"chat", "--model", "claude-3-5-sonnet-20241022", "--verbose"},
+			name:           "empty args",
+			args:           []string{},
+			expectedYolo:   false,
+			expectedVerbose: false,
+			expectedHelp:   false,
+			expectedRemaining: []string{},
+			expectError:    false,
 		},
 		{
-			name:              "unknown config treated as command",
-			args:              []string{"unknown-config", "--some-flag"},
-			expectedConfig:    "",
-			expectedYolo:      false,
-			expectedRemaining: []string{"unknown-config", "--some-flag"},
+			name:           "flags with claude args",
+			args:           []string{"-y", "--verbose", "chat", "--model", "claude-3-5-sonnet-20241022"},
+			expectedYolo:   true,
+			expectedVerbose: true,
+			expectedHelp:   false,
+			expectedRemaining: []string{"chat", "--model", "claude-3-5-sonnet-20241022"},
+			expectError:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock configs for testing
-			configs := &Configs{
-				Configs: map[string]Config{
-					"zai":     {},
-					"default": {},
-				},
+			opts, remaining, err := parseArgs(tt.args)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+				return
 			}
-			config, yolo, _, remaining, err := parseFlags(tt.args, configs)
-			if err != nil {
+			if !tt.expectError && err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return
 			}
-
-			if config != tt.expectedConfig {
-				t.Errorf("Config: expected %q, got %q", tt.expectedConfig, config)
+			if tt.expectError {
+				return // Don't check other fields if we expected an error
 			}
 
-			if yolo != tt.expectedYolo {
-				t.Errorf("Yolo: expected %t, got %t", tt.expectedYolo, yolo)
+
+			if opts.Yolo != tt.expectedYolo {
+				t.Errorf("Yolo: expected %t, got %t", tt.expectedYolo, opts.Yolo)
+			}
+
+			if opts.Verbose != tt.expectedVerbose {
+				t.Errorf("Verbose: expected %t, got %t", tt.expectedVerbose, opts.Verbose)
+			}
+
+
+			if opts.Help != tt.expectedHelp {
+				t.Errorf("Help: expected %t, got %t", tt.expectedHelp, opts.Help)
 			}
 
 			if len(remaining) != len(tt.expectedRemaining) {
@@ -97,13 +145,7 @@ func TestParseFlagsCorrectly(t *testing.T) {
 	}
 }
 
-func TestParseFlagsErrorHandling(t *testing.T) {
-	configs := &Configs{
-		Configs: map[string]Config{
-			"zai": {},
-		},
-	}
-
+func TestParseArgsErrorHandling(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string
@@ -111,27 +153,21 @@ func TestParseFlagsErrorHandling(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:        "config flag without value",
-			args:        []string{"--config"},
+			name:        "unknown flag",
+			args:        []string{"--unknown-flag"},
 			expectError: true,
-			errorMsg:    "--config requires a value",
+			errorMsg:    "flag provided but not defined: -unknown-flag",
 		},
 		{
-			name:        "config flag -c without value",
-			args:        []string{"-c"},
-			expectError: true,
-			errorMsg:    "--config requires a value",
-		},
-		{
-			name:        "valid config flag",
-			args:        []string{"--config", "zai"},
+			name:        "valid flags",
+			args:        []string{"--yolo", "--verbose"},
 			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, _, _, err := parseFlags(tt.args, configs)
+			_, _, err := parseArgs(tt.args)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -141,99 +177,6 @@ func TestParseFlagsErrorHandling(t *testing.T) {
 			}
 			if tt.expectError && err != nil && err.Error() != tt.errorMsg {
 				t.Errorf("Expected error message %q, got %q", tt.errorMsg, err.Error())
-			}
-		})
-	}
-}
-
-func TestParseFlagsSentinelSupport(t *testing.T) {
-	configs := &Configs{
-		Configs: map[string]Config{
-			"zai": {},
-		},
-	}
-
-	tests := []struct {
-		name              string
-		args              []string
-		expectedRemaining []string
-	}{
-		{
-			name:              "double dash sentinel",
-			args:              []string{"--", "--config", "something"},
-			expectedRemaining: []string{"--config", "something"},
-		},
-		{
-			name:              "double dash with yolo before",
-			args:              []string{"--yolo", "--", "--config", "value"},
-			expectedRemaining: []string{"--config", "value"},
-		},
-		{
-			name:              "double dash with config before",
-			args:              []string{"--config", "zai", "--", "--some-flag"},
-			expectedRemaining: []string{"--some-flag"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, _, _, remaining, err := parseFlags(tt.args, configs)
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
-
-			if len(remaining) != len(tt.expectedRemaining) {
-				t.Errorf("Remaining args length: expected %d, got %d", len(tt.expectedRemaining), len(remaining))
-				return
-			}
-
-			for i, expected := range tt.expectedRemaining {
-				if remaining[i] != expected {
-					t.Errorf("Remaining arg %d: expected %q, got %q", i, expected, remaining[i])
-				}
-			}
-		})
-	}
-}
-
-func TestParseFlagsShorthandYolo(t *testing.T) {
-	configs := &Configs{
-		Configs: map[string]Config{},
-	}
-
-	tests := []struct {
-		name         string
-		args         []string
-		expectedYolo bool
-	}{
-		{
-			name:         "short -y flag",
-			args:         []string{"-y"},
-			expectedYolo: true,
-		},
-		{
-			name:         "long --yolo flag",
-			args:         []string{"--yolo"},
-			expectedYolo: true,
-		},
-		{
-			name:         "both flags present (-y wins)",
-			args:         []string{"-y", "--yolo"},
-			expectedYolo: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, yolo, _, _, err := parseFlags(tt.args, configs)
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
-
-			if yolo != tt.expectedYolo {
-				t.Errorf("Yolo: expected %t, got %t", tt.expectedYolo, yolo)
 			}
 		})
 	}

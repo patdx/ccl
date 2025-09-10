@@ -10,6 +10,15 @@
         "./ccl.schema.json"
       ]
     },
+    "bin": {
+      "type": "string",
+      "title": "Claude Binary Path",
+      "description": "Path to the claude executable. If not provided, will use exec.LookPath to find claude in PATH.",
+      "examples": [
+        "/home/user/.claude/local/claude",
+        "/usr/local/bin/claude"
+      ]
+    },
     "default": {
       "type": "object",
       "properties": {
@@ -131,6 +140,7 @@
   "examples": [
     {
       "$schema": "./ccl.schema.json",
+      "bin": "/home/user/.claude/local/claude",
       "default": {
         "env": {}
       },

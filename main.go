@@ -106,10 +106,33 @@ func isSensitiveKey(key string) bool {
 		strings.Contains(upper, "SECRET") || strings.Contains(upper, "PASSWORD")
 }
 
+func printUsage(full bool) {
+	if full {
+		fmt.Fprintf(os.Stderr, "Usage: %s <config-name> [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s list\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s help\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nSubcommands:\n")
+		fmt.Fprintf(os.Stderr, "  list                 list available configurations\n")
+		fmt.Fprintf(os.Stderr, "  help                 show help message\n")
+		fmt.Fprintf(os.Stderr, "\nArguments:\n")
+		fmt.Fprintf(os.Stderr, "  <config-name>        configuration name to use (required)\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		fmt.Fprintf(os.Stderr, "  -yolo, -y            enable yolo mode\n")
+		fmt.Fprintf(os.Stderr, "  -verbose             enable verbose logging\n")
+		fmt.Fprintf(os.Stderr, "  -help, -h            show help message\n")
+		fmt.Fprintf(os.Stderr, "\nOther options are passed through to claude command\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "Usage: %s <config-name|list|help> [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s list                    list available configurations\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s help                    show help message\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       %s <config-name> [options]  run claude with specified config\n", os.Args[0])
+	}
+}
+
 func parseArgs(args []string) (*FlagOptions, []string, error) {
 	// Create a new FlagSet for this parsing operation
 	fs := flag.NewFlagSet("ccl", flag.ContinueOnError)
-	
+
 	// Define flags on this specific FlagSet
 	opts := &FlagOptions{}
 	fs.BoolVar(&opts.Yolo, "yolo", false, "enable yolo mode")
@@ -117,17 +140,16 @@ func parseArgs(args []string) (*FlagOptions, []string, error) {
 	fs.BoolVar(&opts.Verbose, "verbose", false, "enable verbose logging")
 	fs.BoolVar(&opts.Help, "help", false, "show help message")
 	fs.BoolVar(&opts.Help, "h", false, "alias for -help")
-	
+
 	// Parse the provided args instead of os.Args
 	err := fs.Parse(args)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	// Return parsed options and remaining args
 	return opts, fs.Args(), nil
 }
-
 
 func main() {
 	startTime := time.Now()
@@ -135,15 +157,13 @@ func main() {
 
 	// Parse arguments - handle special subcommands first
 	args := os.Args[1:]
-	
+
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "Error: config name or subcommand required as first argument\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s <config-name|list> [options]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "       %s list                    list available configurations\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "       %s <config-name> [options]  run claude with specified config\n", os.Args[0])
+		printUsage(false)
 		os.Exit(1)
 	}
-	
+
 	// Handle special subcommands
 	if args[0] == "list" {
 		// Load configurations for listing
@@ -152,7 +172,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		fmt.Fprintf(os.Stderr, "Available configurations:\n")
 		fmt.Fprintf(os.Stderr, "  default\n")
 		for name := range configs.Configs {
@@ -160,16 +180,40 @@ func main() {
 		}
 		os.Exit(0)
 	}
-	
-	// Parse config name from first argument
-	configName := args[0]
-	argsForParsing := args[1:] // remaining args after config name
-	
-	// Parse flags from remaining args
-	opts, remainingArgs, err := parseArgs(argsForParsing)
+
+	if args[0] == "help" {
+		printUsage(true)
+		os.Exit(0)
+	}
+
+	// Check if first argument is a flag (starts with -)
+	var configName string
+	var argsForParsing []string
+	var opts *FlagOptions
+	var remainingArgs []string
+	var err error
+
+	if len(args) > 0 && strings.HasPrefix(args[0], "-") {
+		// First arg is a flag, parse all args as flags (no config name)
+		configName = ""
+		argsForParsing = args
+	} else {
+		// Normal case: first arg is config name, rest are flags
+		configName = args[0]
+		argsForParsing = args[1:]
+	}
+
+	// Parse flags
+	opts, remainingArgs, err = parseArgs(argsForParsing)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Handle help flag (before loading configs)
+	if opts.Help || configName == "" {
+		printUsage(true)
+		os.Exit(0)
 	}
 
 	if opts.Verbose {
@@ -188,23 +232,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Handle help flag
-	if opts.Help {
-		fmt.Fprintf(os.Stderr, "Usage: %s <config-name> [options]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "       %s list\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\nSubcommands:\n")
-		fmt.Fprintf(os.Stderr, "  list                 list available configurations\n")
-		fmt.Fprintf(os.Stderr, "\nArguments:\n")
-		fmt.Fprintf(os.Stderr, "  <config-name>        configuration name to use (required)\n")
-		fmt.Fprintf(os.Stderr, "Options:\n")
-		fmt.Fprintf(os.Stderr, "  -yolo, -y            enable yolo mode\n")
-		fmt.Fprintf(os.Stderr, "  -verbose             enable verbose logging\n")
-		fmt.Fprintf(os.Stderr, "  -help, -h            show help message\n")
-		fmt.Fprintf(os.Stderr, "\nOther options are passed through to claude command\n")
-		os.Exit(0)
-	}
-
 
 	// Select config
 	var selectedConfig Config
@@ -226,7 +253,7 @@ func main() {
 			for name := range configs.Configs {
 				fmt.Fprintf(os.Stderr, "  %s\n", name)
 			}
-			fmt.Fprintf(os.Stderr, "Use -list to see all available configurations\n")
+			fmt.Fprintf(os.Stderr, "Use 'ccl list' to see all available configurations\n")
 			os.Exit(1)
 		}
 	}

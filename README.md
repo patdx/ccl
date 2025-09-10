@@ -6,18 +6,18 @@ A Go wrapper tool that simplifies using the Claude CLI by managing multiple API 
 
 CCL acts as a smart wrapper around the Claude CLI that:
 
-- **Manages Multiple API Configurations**: Switch between different Claude API endpoints (Anthropic, Z.ai, etc.) with ease
-- **Handles Environment Variables**: Automatically sets API keys, base URLs, and other environment variables
-- **Provides Shortcuts**: Converts `--yolo` to `--dangerously-skip-permissions` for convenience
-- **Visual Feedback**: Shows the active configuration in your terminal/tmux window title
-- **Preserves All Claude CLI Functionality**: Passes through all Claude CLI arguments seamlessly
+- Manages multiple API configurations (Anthropic, Z.ai, etc.)
+- Handles environment variables for keys, base URLs, and options
+- Provides shortcuts: `--yolo` → `--dangerously-skip-permissions`
+- Gives visual feedback by setting terminal/tmux window title
+- Preserves all Claude CLI functionality by passing args through
 
 ## Installation
 
 ### Prerequisites
 
-- Go 1.25.1 or later
-- Claude CLI installed and accessible in your PATH
+- Go 1.21 or later
+- Claude CLI installed and accessible in your PATH (or set `bin` in config)
 
 ### Build and Install
 
@@ -40,19 +40,75 @@ go build -o ccl main.go
 
 ## Quick Start
 
-1. **First Run**: CCL will create a default configuration file at `~/.config/ccl/ccl.json`
-2. **Edit Configuration**: Add your API keys and endpoints to the config file
-3. **Use CCL**: Replace `claude` with `ccl` in your commands
+1. Create the config file
+   - Run any command (e.g., `ccl help`) once to generate `~/.config/ccl/ccl.json` (or `$XDG_CONFIG_HOME/ccl/ccl.json`)
+   - You will see: "Created default config ... Please edit the config file to add your API keys"
+2. Edit the config
+   - Add your API keys and endpoints to the generated file
+3. List available configurations
+   ```bash
+   ccl list
+   # output includes: default and any named configs in your file
+   ```
+4. Use CCL with a specific configuration
+   ```bash
+   # Use the default config
+   ccl default chat "Hello"
+
+   # Use a named config (e.g., zai)
+   ccl zai chat "Hello from Z.ai!"
+
+   # Enable yolo mode (converts to --dangerously-skip-permissions)
+   ccl zai --yolo chat "Hello"
+   # or short form:
+   ccl zai -y chat "Hello"
+
+   # Verbose debug output
+   ccl kimi --verbose chat "Debug this conversation"
+   ```
+
+## Usage
+
+### Synopsis
 
 ```bash
-# Instead of: claude chat "Hello"
-ccl chat "Hello"
+ccl <config-name|list|help> [options] <claude-subcommand> [args...]
+```
 
-# Use specific configuration
-ccl zai chat "Hello"
+- Subcommands:
+  - `list` — list available configurations (always includes `default`)
+  - `help` — show detailed help
+- `config-name` — ALWAYS required when running Claude (e.g., `default`, `zai`, `kimi`)
+- Options (CCL flags):
+  - `--yolo`, `-y` — enable yolo mode (adds `--dangerously-skip-permissions`)
+  - `--verbose` — enable verbose logging
+  - `--help`, `-h` — show help
 
-# Enable yolo mode (converts to --dangerously-skip-permissions)
-ccl --yolo chat "Hello"
+Notes:
+- The configuration name is ALWAYS required as the first argument (except for special subcommands `list` or `help`). Even for the default configuration, you must specify `ccl default`.
+- CCL parses its own flags immediately after the config name; the first non-flag token (e.g., `chat`) stops parsing and all remaining args are passed through to Claude.
+- To pass flags that might be mistaken for CCL flags, use `--` to terminate CCL flag parsing, e.g.:
+  ```bash
+  ccl default -- --version
+  ```
+
+### Examples
+
+```bash
+# List configs
+ccl list
+
+# Use default config
+ccl default chat "Hello, Claude!"
+
+# Use a specific config
+ccl zai chat "Hello from Z.ai!"
+
+# Yolo shortcut → --dangerously-skip-permissions
+ccl kimi -y chat "Skip permissions"
+
+# Verbose mode
+ccl default --verbose chat "Inspect environment setup"
 ```
 
 ## Configuration
@@ -60,7 +116,7 @@ ccl --yolo chat "Hello"
 ### Default Configuration Location
 
 CCL looks for configuration in this order:
-- `$XDG_CONFIG_HOME/ccl/ccl.json` (if XDG_CONFIG_HOME is set)
+- `$XDG_CONFIG_HOME/ccl/ccl.json` (if `XDG_CONFIG_HOME` is set)
 - `~/.config/ccl/ccl.json` (default)
 
 ### Configuration Format
@@ -101,9 +157,9 @@ CCL looks for configuration in this order:
 
 ### Configuration Properties
 
-- `bin` (optional): Path to the Claude CLI binary. If not specified, CCL will use `which claude` to find it in PATH.
-- `default`: Default configuration applied when no specific config is selected
-- `configs`: Named configurations that can be selected at runtime
+- `bin` (optional): Path to the Claude CLI binary. If not specified, CCL uses your `PATH` to find `claude`.
+- `default`: Base configuration applied to all runs.
+- `configs`: Named configurations; their `env` values override `default.env` keys when selected.
 
 ### Environment Variables
 
@@ -114,7 +170,7 @@ Each configuration can set environment variables that will be passed to the Clau
 
 ### Claude Binary Path
 
-If you installed Claude CLI via an alias (e.g., `alias claude="/home/user/.claude/local/claude"`), you'll need to specify the binary path in your config:
+If you installed the Claude CLI in a non-standard location or via an alias, specify the binary path in your config:
 
 ```json
 {
@@ -123,70 +179,29 @@ If you installed Claude CLI via an alias (e.g., `alias claude="/home/user/.claud
 }
 ```
 
-To find your Claude binary path, run:
+Find your Claude binary path with:
 ```bash
-which claude  # On Linux/macOS
-where claude  # On Windows
+which claude  # Linux/macOS
+where claude  # Windows
 ```
-
-## Usage
-
-### Basic Commands
-
-```bash
-# Use default configuration
-ccl chat "Hello, Claude!"
-
-# Use specific configuration
-ccl zai chat "Hello from Z.ai!"
-ccl --config anthropic chat "Hello from Anthropic!"
-
-# List available configurations
-ccl --list
-
-# Enable verbose output
-ccl --verbose chat "Debug this conversation"
-
-# Use yolo mode (shortcut for --dangerously-skip-permissions)
-ccl --yolo chat "Skip all permissions"
-```
-
-### Argument Parsing
-
-CCL intelligently parses arguments:
-- Configuration names can be positional: `ccl zai chat`
-- Or explicit: `ccl --config zai chat`
-- CCL flags are processed first, then remaining arguments are passed to Claude CLI
-- Use `--` to pass arguments that might conflict: `ccl -- --config value-for-claude`
-
-### Flags
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--config` | `-c` | Specify configuration to use |
-| `--yolo` | `-y` | Enable yolo mode (converts to `--dangerously-skip-permissions`) |
-| `--list` | | List available configurations |
-| `--verbose` | | Enable verbose logging |
-| `--help` | `-h` | Show help message |
 
 ## Features
 
 ### Terminal Integration
 
 CCL updates your terminal window title to show the active configuration:
-- Regular terminal: Shows "claude (config-name)"
-- Tmux: Renames the current window to show active config
+- Regular terminal: sets the title to `claude (config-name)`
+- Tmux: renames the current window to show the active config (intentional behavior)
 
 ### Security
 
-- Sensitive environment variables (containing TOKEN, KEY, SECRET, PASSWORD) are masked in verbose output
+- Sensitive environment variables (keys including `TOKEN`, `KEY`, `SECRET`, `PASSWORD`) are masked in verbose logs
 - Configuration files are created with restrictive permissions (0600)
 
 ### Error Handling
 
-- Validates configuration names before execution
-- Provides helpful error messages for missing configurations
-- Falls back to common Claude CLI installation paths if `which claude` fails
+- Validates configuration names before execution and lists available options
+- Clear guidance when the Claude CLI binary cannot be found (configure `bin` or ensure it’s on `PATH`)
 
 ## Development
 
@@ -199,7 +214,7 @@ make test
 go test ./...
 
 # Run specific test
-go test -run TestParseFlagsCorrectly
+go test -run TestParseArgs
 
 # Run with coverage
 go test -cover ./...
@@ -232,21 +247,14 @@ make all      # Clean and build
 If CCL can't find the Claude CLI:
 1. Run `which claude` (or `where claude` on Windows) to find the binary path
 2. Add the path to your config file: `"bin": "/path/to/claude"`
-3. Alternatively, ensure Claude CLI is installed and in your PATH
+3. Or ensure the Claude CLI is in your `PATH`
 
-Common installation locations:
-- Shell alias: Check your `.bashrc`/`.zshrc` for `alias claude="..."`
-- Direct install: `/usr/local/bin/claude`, `~/.claude/local/claude`
+Common installation hints:
+- Shell alias: check your shell rc files (e.g., `.bashrc`, `.zshrc`) for `alias claude="..."`
+- Direct installs are often at `/usr/local/bin/claude` or `~/.claude/local/claude`
 
 ### Configuration Issues
 
-- Use `ccl --list` to see available configurations
-- Use `ccl --verbose` to debug environment variable setup
-- Check file permissions on config file (should be 0600)
-
-### API Key Management
-
-- Never commit API keys to version control
-- Use environment-specific configurations for different projects
-- Sensitive values are automatically masked in verbose output
-
+- Use `ccl list` to see available configurations
+- Use `ccl <config> --verbose ...` to debug environment variable setup (sensitive values are masked)
+- Check file permissions on the config file (should be 0600)
